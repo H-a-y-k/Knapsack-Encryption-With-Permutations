@@ -5,7 +5,7 @@ project(PublicKeyEncryption LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(PublicKeyEncryption main.cpp permutation.h permutation.cpp privatekeygenerator.h privatekeygenerator.cpp)
+add_executable(PublicKeyEncryption main.cpp permutation.h privatekeygenerator.h protocol.h)
 
 install(TARGETS PublicKeyEncryption
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
