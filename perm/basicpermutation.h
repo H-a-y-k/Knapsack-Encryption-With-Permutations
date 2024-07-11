@@ -55,6 +55,15 @@ public:
     template<size_t m>
     std::optional<std::array<int, n-m>> decompose_i();
 
+    int order()
+    {
+        auto p = *this;
+        int i = 0;
+        for (; p != identity(); i++)
+            p = p*(*this);
+        return i;
+    }
+
     static BasicPermutation<n> generate_random(std::mt19937& gen)
     {
         BasicPermutation<n> p;

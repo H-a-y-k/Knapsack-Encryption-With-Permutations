@@ -1,25 +1,25 @@
-#ifndef PROTOCOL_H
-#define PROTOCOL_H
+#ifndef KEYPAIR_H
+#define KEYPAIR_H
 
-#include "privatekeygenerator.h"
+#include "../util/privatekeygenerator.h"
 #include <string>
 #include <vector>
-#include "basicpermutation.h"
+#include "../perm/basicpermutation.h"
 #include <bitset>
 #include <array>
-
-template<size_t n, size_t m>
-using PublicKey = std::array<std::array<BasicPermutation<n+m>, m>, n>;
+#include "../util/permutation_vector_utils.h"
 
 template<size_t n, size_t k>
 class KeyPair {
-    PublicKey<n,(1<<k)> publicKey;
-    BasicPermutation<n+(1<<k)> privateKey;
-    PrivateKeyGenerator<n+(1<<k)> gen;
 public:
-    KeyPair();
-
-    PublicKey<n, 1<<k> getPublicKey() const
+    static constexpr size_t m = (1<<k);
+private:
+    Table<BasicPermutation<n + m>, n, m> publicKey;
+    BasicPermutation<n + m> privateKey;
+    PrivateKeyGenerator<n + m> gen;
+public:
+    KeyPair(Table<BasicPermutation<n + (1<<k)>, n, (1<<k)>);
+    Table<BasicPermutation<n+m>, n, m> getPublicKey()
     {
         return publicKey;
     }
@@ -29,36 +29,37 @@ public:
         return privateKey;
     }
 
-    BasicPermutation<n+ (1<<k)> encrypt(std::bitset<k*n>) const;
-    std::bitset<k*n> decrypt(BasicPermutation<n+ (1<<k)> a) const;
+    BasicPermutation<n + (1<<k)> encrypt(std::bitset<k*n>) const;
+    std::bitset<k*n> decrypt(BasicPermutation<n + (1<<k)> a) const;
 };
 
 template<size_t n, size_t k>
-KeyPair<n,k>::KeyPair() : gen(PrivateKeyGenerator<n+(1<<k)>())
+KeyPair<n,k>::KeyPair(Table<BasicPermutation<n+(1<<k)>,n,(1<<k)> pk) : gen(PrivateKeyGenerator<n+m>())
 {
-    constexpr static int m = (1 << k);
+    std::random_device rd;
+    std::mt19937 genn( rd());
+
     std::array<BasicPermutation<n+m>, n> vec = gen.template generate<n>();
 
     for (int i = 0; i < n-1; i++)
     {
         for (int j = 0; j < m; j++)
         {
-            publicKey[i][j] = vec[i] * BasicPermutation<n+m>::transposition(i+1, n + j+1) * vec[i+1].inverse();
+            publicKey[i][j] = vec[i] * pk[i][j] * vec[i+1].inverse();
         }
     }
 
     for (int j = 0; j < m; j++)
     {
-        publicKey[n-1][j] = vec[n-1] * BasicPermutation<n+m>::transposition(n, n + j+1) * vec[0];
+        publicKey[n-1][j] = vec[n-1] * pk[n-1][j] * vec[0];
     }
 
     privateKey = vec[0];
 }
 
 template<size_t n, size_t k>
-BasicPermutation<n+(1<<k)> KeyPair<n,k>::encrypt(std::bitset<k*n> message_block) const
+BasicPermutation<n + (1<<k)> KeyPair<n,k>::encrypt(std::bitset<k*n> message_block) const
 {
-    constexpr static int m = (1 << k);
     BasicPermutation<n+m> a,b;
 
     for (int i = 0; i < n; i++)
@@ -74,10 +75,8 @@ BasicPermutation<n+(1<<k)> KeyPair<n,k>::encrypt(std::bitset<k*n> message_block)
 }
 
 template<size_t n, size_t k>
-std::bitset<k*n> KeyPair<n,k>::decrypt(BasicPermutation<n+(1<<k)> a) const
+std::bitset<k*n> KeyPair<n,k>::decrypt(BasicPermutation<n+ (1<<k)> a) const
 {
-    constexpr static size_t m = (1 << k);
-
     std::bitset<k*n> block;
 
     a = (privateKey.inverse()*a*privateKey.inverse());
@@ -92,5 +91,4 @@ std::bitset<k*n> KeyPair<n,k>::decrypt(BasicPermutation<n+(1<<k)> a) const
 
     return block;
 }
-
-#endif // PROTOCOL_H
+#endif // KEYPAIR_H

@@ -114,7 +114,6 @@ int Permutation<n>::operator()(int i) const
     return perm(i);
 }
 
-
 template<size_t n>
 Permutation<n> Permutation<n>::operator*(const Permutation<n> &other)
 {

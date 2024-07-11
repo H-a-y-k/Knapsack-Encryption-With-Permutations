@@ -1,7 +1,7 @@
 #ifndef PRIVATEKEYGENERATOR_H
 #define PRIVATEKEYGENERATOR_H
 
-#include "basicpermutation.h"
+#include "../perm/basicpermutation.h"
 #include <array>
 
 template <size_t n>

@@ -10,92 +10,38 @@
 #include <set>
 #include <algorithm>
 #include <iterator>
-
-namespace
-{
-std::set<int> intersect(std::set<int> a, std::set<int> b)
-{
-
-    std::set<int> intersection;
-    std::set_intersection(a.begin(), a.end(), b.begin(), b.end(), std::inserter(intersection, intersection.begin()));
-    return intersection;
-}
-
-std::set<int> intersect(std::vector<std::set<int>>::iterator begin, std::vector<std::set<int>>::iterator end)
-{
-    std::set<int> intersection = *begin;
-    for (auto i = begin; i != end; i++)
-    {
-        intersection = intersect(intersection, *i);
-    }
-
-    return intersection;
-}
-
-template <size_t n>
-std::set<int> fixed(Permutation<n> a)
-{
-    std::set<int> fixed;
-    for (int i = 1; i <= n; i++)
-    {
-        if (a(i) == i)
-        fixed.insert(i);
-    }
-    return fixed;
-}
-
-template <size_t n>
-std::set<int> fixed_i(std::vector<std::set<int>> vec, int i)
-{
-    int k = 0;
-    for (int j = 0; j < i; j++)
-    {
-        k += (n-j);
-    }
-
-    return intersect(vec.begin() + k, vec.end());
-}
-
-template <size_t n>
-bool subset(std::set<int> A, std::set<int> B)
-{
-    if (A.size() > B.size())
-        return false;
-    if (A.size() == B.size() && A != B)
-        return false;
-
-    for (auto a : A)
-    {
-        if (B.find(a) == B.end())
-            return false;
-    }
-
-    return true;
-}
-
-}
-
+#include "../util/permutation_vector_utils.h"
 
 template <size_t n>
 class SimsGenerator
 {
     std::vector<Permutation<n>> stack;
-    std::stack<Permutation<n>> added;
     Permutation<n> current;
-    std::array<std::array<Permutation<n>,n>,n> table;
-
+    Table<Permutation<n>,n,n> table;
 public:
-    using Table = std::array<std::array<Permutation<n>, n>, n>;
-
+    std::stack<Permutation<n>> added;
+    int delta = 0;
     SimsGenerator();
-    SimsGenerator(const Table &t) : table(t) {}
+    SimsGenerator(const Table<Permutation<n>,n,n> &t) : table(t) {}
+    SimsGenerator(const Table<Permutation<n>,n,n> &t, const std::vector<Permutation<n>> &s) : table(t), stack(s) {}
 
     bool hasNext()
     {
         return !added.empty();
     }
 
-    Table getTable() { return table; }
+    bool isIsomorphicWithShadow()
+    {
+        for (auto p : stack)
+        {
+            if (p.getPerm().order() != p.getShadow().order())
+                return false;
+        }
+        return true;
+    }
+
+    std::vector<Permutation<n>> getStack() { return stack; }
+    Table<Permutation<n>,n,n>& getTable() { return table; }
 
     unsigned long long int group_size()
     {
@@ -103,7 +49,7 @@ public:
 
         for (int i = 0; i < n; i++)
         {
-            int ki = 0;
+            unsigned long long int ki = 0;
             for (int j = i; j < n; j++)
             {
                 if (i!=j && table[i][j] != Permutation<n>())
@@ -116,9 +62,9 @@ public:
         return size;
     }
 
-    void feed(std::vector<Permutation<n>>);
-    SimsGenerator<n>& next();
-    Permutation<n> cascade(Permutation<n> a, bool mutate = true);
+    void feed(const std::vector<Permutation<n>>&);
+    SimsGenerator<n>& next(bool verbose=true);
+    Permutation<n> cascade(Permutation<n> a, bool mutate = true, int upto = -1);
 };
 
 
@@ -133,17 +79,16 @@ SimsGenerator<n>::SimsGenerator()
 }
 
 template <size_t n>
-void SimsGenerator<n>::feed(std::vector<Permutation<n>> generator)
+void SimsGenerator<n>::feed(const std::vector<Permutation<n>> &generator)
 {
     for (auto p : generator)
         cascade(p);
 }
 
 template <size_t n>
-SimsGenerator<n>& SimsGenerator<n>::next()
+SimsGenerator<n>& SimsGenerator<n>::next(bool verbose)
 {
-    if (!hasNext())
-        return *this;
+    auto addedinit = added.size();
 
     auto stackcpy = stack;
     current = added.top();
@@ -154,13 +99,18 @@ SimsGenerator<n>& SimsGenerator<n>::next()
     {
         feed({*elem*current, current* (*elem)});
     }
-    // std::cout << "\nnext, added: " << added.size();
+    if (added.size() < addedinit)
+        delta--;
+    else if (delta < 0)
+        delta++;
+    if (verbose)
+        std::cout << "delta: " << delta << "\n";
 
     return *this;
 }
 
 template <size_t n>
-Permutation<n> SimsGenerator<n>::cascade(Permutation<n> a, bool mutate)
+Permutation<n> SimsGenerator<n>::cascade(Permutation<n> a, bool mutate, int upto)
 {
     auto addedfirst = added.size();
 
@@ -169,7 +119,7 @@ Permutation<n> SimsGenerator<n>::cascade(Permutation<n> a, bool mutate)
 
     int i = 1;
 
-    while (i <= n)
+    while (i <= n && i != upto)
     {
         if (b(i) == i)
         {
